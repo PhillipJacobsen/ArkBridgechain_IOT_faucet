@@ -118,13 +118,6 @@ const char* recipientId = "TUG1LSi9Di7dBTHze7GYN653pU3mhGSAPQ";
 //const char* ssid = "xxxxxxxxxx";
 //const char* password = "xxxxxxxxxx";
 
-//h
-const char* ssid = "TELUS0183";
-const char* password = "6z5g4hbdxi";
-
-//w
-//const char* ssid = "TELUS6428";
-//const char* password = "3mmkgc9gn2";
 
 
 

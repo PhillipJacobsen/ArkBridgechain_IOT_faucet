@@ -8,28 +8,42 @@
 
     Program Features:
     This program has been tested with ESP32 Adafruit Huzzah however it should also work with ESP8266 modules with minor changes to hardware connections and wifi libraries.
-    This sketch uses the ARK Cpp-Client API to interact with an Ark V2 Devnet node.
+    This sketch uses the ARK Cpp-Client API to interact with an Ark V2.4 Bridgechain Testnet/Devnet node.
     Ark Cpp Client available from Ark Ecosystem <info@ark.io>
     Ark API documentation:  https://docs.ark.io/sdk/clients/usage.html
 
-    Electronic Hardware Peripherals:
-    Adafruit TFT FeatherWing 2.4" 320x240 Touchscreen
+    This program will provide similar features/settings as the ARK devnet faucet for DARK coins by deadlock-delegate
+    https://github.com/deadlock-delegate/faucet
 
-  Description of the current program flow.  status/debug info is also regularly sent to serial terminal
+    relays - list of relays through which you wish to broadcast transactions
+    walletAddress - address of your faucet
+    walletPassphrase - passphrase of your faucet's wallet
+    vendorField - what message you wish to add to each payout
+    payoutAmount - what amount you wish to payout per request
+    payoutCooldown - for how long will user not be able to request a payment for
+    dailyPayoutLimit - what's the faucet's max (overall) daily payout
+
+
+
+    Electronic Hardware Peripherals:
+
+
+  Description of the desired program flow.  status/debug info is also regularly sent to serial terminal
+
+
+
+
   1. configure peripherals
-  -setup wifi and display connection status and IP address on TFT Screen
-  -setup time sync with NTP server and display current time
+  -setup wifi
+  -setup time sync with NTP server
   -check to see if Ark node is synced and display status
-  2. search through all received transactions on wallet. Wallet address is displayed
-    -"searching wallet + page#" will be displayed. text will toggle between red/white every received transaction
-  3. # of transactions in wallet will be displayed
-  4. User Interface with 3 buttons are displayed(only 1 button currently functions("M&M").
-  5. When user selects M&M's a QRcode is displayed along with a timeout displayed.
-  4. QR code includes price, address and Vendor field = "ArkVend_(random number)" when scanned by Ark mobile wallet.
-  5. wallet waits for transaction with vendor field to be received.
-  6. If payment is received then it will indicated success and display in green text "Payment: ArkVend_(random_number)"
-    if incorrect payment is received then received transaction will be ignored.
-  7. Back to Step 4
+  -check wallet balance. If empty then send telegram message and blink LED
+  2. Start loop
+    3.
+    4. look for Telegram messages
+    5. if token request message received then send transaction to requested address
+    6. send message to telegram (include transaction ID)
+  7. Back to Step 2
 
 ********************************************************************************/
 
@@ -95,7 +109,7 @@ const char* recipientId = "TUG1LSi9Di7dBTHze7GYN653pU3mhGSAPQ";
 #endif
 
 #ifdef  ESP8266
-#include <ESP8266WiFi.h> 
+#include <ESP8266WiFi.h>
 #endif
 
 //--------------------------------------------
@@ -123,7 +137,6 @@ const char* password = "6z5g4hbdxi";
   I need to do a bit more work in regards to Daylight savings time and the periodic sync time with the NTP service after initial syncronization
 ********************************************************************************/
 #include "time.h"
-//#include <TimeLib.h>    //https://github.com/PaulStoffregen/Time
 int timezone = -6;        //set timezone:  MST
 int dst = 0;              //To enable Daylight saving time set it to 3600. Otherwise, set it to 0. Not sure if this works.
 
@@ -142,12 +155,12 @@ unsigned long timeAPIstart;  //variable used to measure API access time
 void idHashToBuffer(char hashBuffer[64]) {
   int idByteLen = 6;
 
-#ifdef  ESP32  
+#ifdef  ESP32
   uint64_t chipId = ESP.getEfuseMac();
 #endif
 
 #ifdef  ESP8266
-  uint64_t chipId = ESP.getChipId(); 
+  uint64_t chipId = ESP.getChipId();
 #endif
 
   uint8_t *bytArray = *reinterpret_cast<uint8_t(*)[sizeof(uint64_t)]>(&chipId);
@@ -159,8 +172,8 @@ void idHashToBuffer(char hashBuffer[64]) {
 }
 
 Transaction txFromHash(char hashBuffer[64]) {
-    return Ark::Crypto::Transactions::Builder::buildTransfer(recipientId, 1, hashBuffer, yourSecretPassphrase);
-  //return Ark::Crypto::Transactions::Builder::buildTransfer(recipientId, 1000, "GiddyUp", yourSecretPassphrase);
+  return Ark::Crypto::Transactions::Builder::buildTransfer(recipientId, 1, hashBuffer, yourSecretPassphrase);
+  //return Ark::Crypto::Transactions::Builder::buildTransfer(recipientId, 1, "GiddyUp", yourSecretPassphrase);
 
 }
 
@@ -196,14 +209,14 @@ void loop() {
   Serial.print("\ntxSendResponse: ");
   Serial.println(txSendResponse.c_str());
   delay(1000);
-#ifdef  ESP32  
+#ifdef  ESP32
   esp_deep_sleep_start();
 #endif
 
 #ifdef  ESP8266
-while(true) {}
- // esp_deepSleep(0);
+  while (true) {}
+  // esp_deepSleep(0);
 #endif
 
-  
+
 }

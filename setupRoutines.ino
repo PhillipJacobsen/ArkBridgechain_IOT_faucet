@@ -117,11 +117,11 @@ void setup()
 
 
 
-  bot.sendMessage("-344083892", "Ark BridgeChain IOT Faucet Ready", "");      //Add @RawDataBot to your group chat to find the chat id.
+  bot.sendMessage("-1001491687302", "Ark BridgeChain IOT Faucet Ready", "");      //Add @RawDataBot to your group chat to find the chat id.
     String balance = "Faucet Address: ";
  
     balance += String(FaucetAddress);
-   bot.sendMessage("-344083892", balance, "");      //Add @RawDataBot to your group chat to find the chat id.
+   bot.sendMessage("-1001491687302", balance, "");      //Add @RawDataBot to your group chat to find the chat id.
 
 //  delay(1500);
 

@@ -112,7 +112,7 @@ const char* recipientId = "DHy5z5XNKXhxztLDpT88iD2ozR7ab5Sw2w";
 
 
 
-char vendorField[Sha256::BLOCK_LEN + 1] = { '\0' };
+//char vendorField[Sha256::BLOCK_LEN + 1] = { '\0' };
 
 /**
    This is how you define a connection while speficying the API class as a 'template argument'
@@ -180,13 +180,7 @@ unsigned long timeAPIstart;  //variable used to measure API access time
 //const char* ssid = "xxxxxxxxxx";
 //const char* password = "xxxxxxxxxx";
 
-//h
-const char* ssid = "TELUS0183";
-const char* password = "6z5g4hbdxi";
 
-//w
-//const char* ssid = "TELUS6428";
-//const char* password = "3mmkgc9gn2";
 
 /********************************************************************************
   Telegram BOT
@@ -233,9 +227,6 @@ bool Start = false;
 
 
 
-
-
-
 /********************************************************************************
   Function prototypes
   Arduino IDE normally does its automagic here and creates all the function prototypes for you.
@@ -247,21 +238,6 @@ bool Start = false;
   End Function Prototypes
 ********************************************************************************/
 void handleNewMessages(int numNewMessages);
-
-
-
-
-//  sendTX(vendorField);
-
-
-
-
-
-
-
-
-
-
 
 
 void loop() {
@@ -288,23 +264,5 @@ void loop() {
   }
 
 
-
-
-  /*
-     char hashBuffer[Sha256::BLOCK_LEN + 1] = { '0' };
-     idHashToBuffer(hashBuffer);
-     Transaction transaction = txFromHash(hashBuffer);
-     char jsonBuffer[576] = { '\0' };
-     snprintf(&jsonBuffer[0], 576, "{\"transactions\":[%s]}", transaction.toJson().c_str());
-     std::string jsonStr(jsonBuffer);
-
-    //   Ark::Client::Connection<Ark::Client::Api> connection(peer, port);
-
-     std::string txSendResponse = connection.api.transactions.send(jsonStr);
-     Serial.print("\ntxSendResponse: ");
-     Serial.println(txSendResponse.c_str());
-     esp_deep_sleep_start();
-
-  */
 
 }

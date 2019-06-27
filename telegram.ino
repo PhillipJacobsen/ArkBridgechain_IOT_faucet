@@ -91,7 +91,7 @@ void handleNewMessages(int numNewMessages) {
         Serial.print("\nreceiveAddress char: ");
         Serial.print(receiveaddress_char);
 
-        Transaction transaction = Ark::Crypto::Transactions::Builder::buildTransfer(receiveaddress_char, 1, "faucet", yourSecretPassphrase);
+        Transaction transaction = Ark::Crypto::Transactions::Builder::buildTransfer(receiveaddress_char, 1000000000, "faucet", yourSecretPassphrase);
 
         const auto txJson = transaction.toJson();
 
@@ -108,7 +108,7 @@ void handleNewMessages(int numNewMessages) {
         String transactionresult = "transaction result: ";
 
         transactionresult += txSendResponse.c_str();
-        bot.sendMessage("-344083892", transactionresult, "");      //Add @RawDataBot to your group chat to find the chat id.
+        bot.sendMessage(chat_id, transactionresult, "");      //Add @RawDataBot to your group chat to find the chat id.
 
       }
 
@@ -128,6 +128,7 @@ void handleNewMessages(int numNewMessages) {
 //      welcome += "/name : Returns bot name\n";
 //      welcome += "/time : Returns current Date and Time\n";
       welcome += "/address : Returns wallet address of faucet\n";
+      welcome += "/balance : Returns balance of wallet\n";
       //      welcome += "/request_WALLETADDRESS : Replace WALLETADDRESS with your address\n";
       welcome += "/request\\_WALLETADDRESS : replace WALLETADDRESS with your address\n";
       bot.sendMessage(chat_id, welcome, "Markdown");
@@ -136,22 +137,6 @@ void handleNewMessages(int numNewMessages) {
       Serial.println("sent start message to telegram");
 
     }
-
-    /*
-       if (text == "/start" || text == "/start@arkIOT2_bot") {
-         String welcome = "Welcome to Ark Vending Machine Demo Bot, " + from_name + ".\n";
-         // welcome += "This is Ark Vending Machine Demo.\n\n";
-         welcome += "/options : display option keyboard\n";
-         welcome += "/ledon : to switch the LED ON\n";
-         welcome += "/ledoff : to switch the LED OFF\n";
-         welcome += "/time : Returns current Date and Time\n";
-         welcome += "/name : Returns bot name\n";
-         welcome += "/status : Returns current status of LED\n";
-         welcome += "/balance : Returns balance of wallet\n";
-         welcome += "/transactions : Returns # of received transactions\n";
-         bot.sendMessage(chat_id, welcome, "Markdown");
-       }
-    */
 
 
     if (text == "/balance" || text == "/balance@NybbleFaucet_bot" ) {

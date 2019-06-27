@@ -15,9 +15,7 @@
     This program will provide similar features/settings as the ARK devnet faucet for DARK coins by deadlock-delegate
     https://github.com/deadlock-delegate/faucet
 
-    relays - list of relays through which you wish to broadcast transactions
-    walletAddress - address of your faucet
-    walletPassphrase - passphrase of your faucet's wallet
+    faucetAddress - address of your faucet
     vendorField - what message you wish to add to each payout
     payoutAmount - what amount you wish to payout per request
     payoutCooldown - for how long will user not be able to request a payment for
@@ -29,33 +27,23 @@
 
 
   Description of the desired program flow.  status/debug info is also regularly sent to serial terminal
+  TBD
 
 
 
-
-  1. configure peripherals
-  -setup wifi
-  -setup time sync with NTP server
-  -check to see if Ark node is synced and display status
-  -check wallet balance. If empty then send telegram message and blink LED
-  2. Start loop
-    3.
-    4. look for Telegram messages
-    5. if token request message received then send transaction to requested address
-    6. send message to telegram (include transaction ID)
-  7. Back to Step 2
 
 ********************************************************************************/
 
-// Conditional Assembly
+// conditional assembly
+//
+#define NYBBLE   //this configures system for my custom bridgechain. If undefined then system will be configured for Ark Devnet.
 
-//select your device. Only 1 device should be defined
+#define ARDUINOJSON_USE_LONG_LONG 1     //required for compatiblity between Telegram Library and ArkCrypto library.
+
+//select your device. Only 1 device should be defined at a time
 //#define ESP8266
-//#define ESP32
+#define ESP32
 
-
-
-#include <Arduino.h>    //do we need this?
 
 
 /********************************************************************************
@@ -63,6 +51,15 @@
 ********************************************************************************/
 const int ledPin = 13;    //LED integrated in Adafruit HUZZAH32
 int ledStatus = 0;
+
+
+/********************************************************************************
+   Arduino Json Libary - works with Version5.  NOT compatible with Version6
+    Available through Arduino Library Manager
+    Data returned from Ark API is in JSON format.
+    This libary is used to parse and deserialize the reponse
+********************************************************************************/
+#include <ArduinoJson.h>
 
 
 /********************************************************************************
@@ -74,7 +71,6 @@ int ledStatus = 0;
     Available through Arduino Library Manager
 
 ********************************************************************************/
-
 #include <arkClient.h>
 #include <arkCrypto.h>
 
@@ -84,19 +80,37 @@ int ledStatus = 0;
     This is where you define the IP address of the Ark BridgeChain Testnet/Devnet Node.
     The Public API port for the V2 Ark network is '4003'
 */
-const char* peer = "159.203.42.124";  //BridgeChain Testnet/Devnet Peer
+#ifdef NYBBLE
+const char* peer = "159.203.42.124";  //BridgeChain Testnet/Devnet .Peer make sure to set epoch in devnet.h to     "2019-06-18T22:44:26.320Z"  // Epoch
 int port = 4003;
+#else
+const char* peer = "167.114.29.49"; //make sure to set epoch in devnet.h to     "2017-03-21T13:00:00.000Z"  // Epoch
+int port = 4003;
+#endif
 
 
+
+#ifdef NYBBLE
 //Wallet Address on bridgechain that holds the tokens
 const char* FaucetAddress = "TRv5prdxiSSTeBELxyKKp3pj6UtvwkQyCh";   //NYBBLE testnet address that holds faucet funds
 const char* ArkPublicKey = "028dad72086b512564f697da0c813bfaf5358badcdbf8eb6ef2497bd05f873d28d";       //
 const char* yourSecretPassphrase = "antique depart senior usage lesson wash antique indoor hero matrix drum green";
 
-char VendorID[64];      //this needs to be expanded
-
-
 const char* recipientId = "TUG1LSi9Di7dBTHze7GYN653pU3mhGSAPQ";
+#else
+const char* FaucetAddress = "DHy5z5XNKXhxztLDpT88iD2ozR7ab5Sw2w";   //NYBBLE testnet address that holds faucet funds
+//const char* ArkPublicKey = "028dad72086b512564f697da0c813bfaf5358badcdbf8eb6ef2497bd05f873d28d";       //
+const char* yourSecretPassphrase = "butter truly next bike bonus brass destroy ripple chef sheriff actor helmet";
+
+const char* recipientId = "DHy5z5XNKXhxztLDpT88iD2ozR7ab5Sw2w";
+
+#endif
+
+
+//char VendorID[64];      //this needs to be expanded
+
+
+
 
 char vendorField[Sha256::BLOCK_LEN + 1] = { '\0' };
 
@@ -123,39 +137,13 @@ int amount;                 //transactions amount
 const char* senderAddress;  //transaction address of sender
 //const char* vendorField;    //vendor field
 
+int lastRXpage;             //page number of the last received transaction in wallet
+int searchRXpage;           //page number that is used for wallet search
+
+int ARK_mtbs = 4000;      //mean time(in ms) between polling Ark API for new transactions
+long ARKscan_lasttime;   //last time Ark API poll has been done
 
 
-/********************************************************************************
-  WiFi Library
-  If using the ESP8266 I believe you will need to #include <ESP8266WiFi.h> instead of WiFi.h
-********************************************************************************/
-#include <WiFi.h>
-
-
-
-//--------------------------------------------
-//This is your WiFi network parameters that you need to configure
-
-//const char* ssid = "xxxxxxxxxx";
-//const char* password = "xxxxxxxxxx";
-
-
-//h
-const char* ssid = "TELUS0183";
-const char* password = "6z5g4hbdxi";
-
-//w
-//const char* ssid = "TELUS6428";
-//const char* password = "3mmkgc9gn2";
-
-
-/********************************************************************************
-   Arduino Json Libary - works with Version5.  NOT compatible with Version6
-    Available through Arduino Library Manager
-    Data returned from Ark API is in JSON format.
-    This libary is used to parse and deserialize the reponse
-********************************************************************************/
-//#include <ArduinoJson.h>
 
 
 /********************************************************************************
@@ -173,7 +161,32 @@ unsigned long timeNow;  //variable used to hold current millis() time.
 unsigned long timeAPIfinish;  //variable used to measure API access time
 unsigned long timeAPIstart;  //variable used to measure API access time
 
+/********************************************************************************
+  WiFi Library
+  If using the ESP8266 you will need to #include <ESP8266WiFi.h> instead of WiFi.h
+********************************************************************************/
+#ifdef ESP32
+#include <WiFi.h>
+#endif
 
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#endif
+
+
+//--------------------------------------------
+//This is your WiFi network parameters that you need to configure
+
+//const char* ssid = "xxxxxxxxxx";
+//const char* password = "xxxxxxxxxx";
+
+//h
+const char* ssid = "TELUS0183";
+const char* password = "6z5g4hbdxi";
+
+//w
+//const char* ssid = "TELUS6428";
+//const char* password = "3mmkgc9gn2";
 
 /********************************************************************************
   Telegram BOT
@@ -223,125 +236,29 @@ bool Start = false;
 
 
 
-///*
-
-void idHashToBuffer(char hashBuffer[64]) {
-  int idByteLen = 6;
-
-  uint64_t chipId = ESP.getEfuseMac();
-  uint8_t *bytArray = *reinterpret_cast<uint8_t(*)[sizeof(uint64_t)]>(&chipId);
-  std::reverse(&bytArray[0], &bytArray[idByteLen]);
-
-  const auto shaHash = Sha256::getHash(&bytArray[0], idByteLen);
-
-  memmove(hashBuffer, BytesToHex(&shaHash.value[0], &shaHash.value[0] + shaHash.HASH_LEN).c_str(), Sha256::BLOCK_LEN);
-}
-
-
-
-Transaction txFromHash(char hashBuffer[64]) {
-//  return Ark::Crypto::Transactions::Builder::buildTransfer(recipientId, 1, hashBuffer, yourSecretPassphrase);
-  return Ark::Crypto::Transactions::Builder::buildTransfer(recipientId, 1, "GiddyUp", yourSecretPassphrase);
-
-}
-
-
-///*
-
-/********************************************************************************
-  This routine waits for a connection to your WiFi network according to "ssid" and "password" defined previously
-********************************************************************************/
-void setupWiFi() {
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(400);
-    Serial.print(".");
-  }
-  Serial.print("\nConnected, IP address: ");
-  Serial.println(WiFi.localIP());
-}
-
-
-/********************************************************************************
-  This routine configures the ESP32 internal clock to syncronize with NTP server.
-
-  apparently this will enable the core to periodically sync the time with the NTP server. I don't really know how often this happens
-  I am not sure if daylight savings mode works correctly. Previously it seems like this was not working on ESP2866
-********************************************************************************/
-void setupTime() {
-
-  configTime(timezone * 3600, dst, "pool.ntp.org", "time.nist.gov");
-
-  //wait for time to sync from servers
-  while (time(nullptr) <= 100000) {
-    delay(100);
-  }
-
-  time_t now = time(nullptr);   //get current time
-  Serial.print("time is: ");
-  Serial.println(ctime(&now));
-
-}
-
-
-
 /********************************************************************************
   Function prototypes
   Arduino IDE normally does its automagic here and creates all the function prototypes for you.
   We have put functions in other files so we need to manually add some prototypes as the automagic doesn't work correctly
 ********************************************************************************/
-//bool checkArkNodeStatus();
-
-
-
-
-
-
 
 
 /********************************************************************************
   End Function Prototypes
 ********************************************************************************/
+void handleNewMessages(int numNewMessages);
 
 
-void setup() {
-  Serial.begin(115200);
-  while ( !Serial && millis() < 20 );
 
-  pinMode(ledPin, OUTPUT); // initialize digital ledPin as an output.
-  digitalWrite(ledPin, LOW); // initialize pin as off    //Adafruit HUZZAH32
 
-  //--------------------------------------------
-  //setup WiFi connection
-  setupWiFi();
+//  sendTX(vendorField);
 
-  //--------------------------------------------
-  //  sync local time to NTP server
-  setupTime();
 
-  //--------------------------------------------
-  //  check to see if Ark Node is synced
-  //  node is defined previously with "peer" and "port"
-  //  returns True if node is synced to chain
 
-  //if (checkArkNodeStatus()) {
- //   Serial.print("\nNode is Synced: ");
- // }
-//  else {
-//    Serial.print("\nNode is NOT Synced: ");
-//  }
 
-  //bot.sendMessage("-344083892", "Ark BridgeChain IOT Faucet Ready", "");      //Add @RawDataBot to your group chat to find the chat id.
- //   String balance = "Faucet Address: ";
-//    balance += String(FaucetAddress);
-//    bot.sendMessage("-344083892", balance, "");      //Add @RawDataBot to your group chat to find the chat id.
 
-  delay(2000);
-  Bot_lasttime = millis();  //initialize Telegram Bot Poll timer
 
-  sendTX(vendorField);
 
-}
 
 
 
@@ -351,21 +268,43 @@ void loop() {
 
   delay(1);
 
- /*
-    char hashBuffer[Sha256::BLOCK_LEN + 1] = { '0' };
-    idHashToBuffer(hashBuffer);
-    Transaction transaction = txFromHash(hashBuffer);
-    char jsonBuffer[576] = { '\0' };
-    snprintf(&jsonBuffer[0], 576, "{\"transactions\":[%s]}", transaction.toJson().c_str());
-    std::string jsonStr(jsonBuffer);
+  if (millis() > Bot_lasttime + Bot_mtbs)  {
 
- //   Ark::Client::Connection<Ark::Client::Api> connection(peer, port);
+    timeAPIstart = millis();  //get time that API read started
 
-    std::string txSendResponse = connection.api.transactions.send(jsonStr);
-    Serial.print("\ntxSendResponse: ");
-    Serial.println(txSendResponse.c_str());
-    esp_deep_sleep_start();
+    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
 
-*/
+    timeNow = millis() - timeAPIstart;  //get current time
+    Serial.print("Telegram get update time:");
+    Serial.println(timeNow);
+
+    while (numNewMessages) {
+      Serial.println("got response");
+      handleNewMessages(numNewMessages);
+      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+    }
+
+    Bot_lasttime = millis();
+  }
+
+
+
+
+  /*
+     char hashBuffer[Sha256::BLOCK_LEN + 1] = { '0' };
+     idHashToBuffer(hashBuffer);
+     Transaction transaction = txFromHash(hashBuffer);
+     char jsonBuffer[576] = { '\0' };
+     snprintf(&jsonBuffer[0], 576, "{\"transactions\":[%s]}", transaction.toJson().c_str());
+     std::string jsonStr(jsonBuffer);
+
+    //   Ark::Client::Connection<Ark::Client::Api> connection(peer, port);
+
+     std::string txSendResponse = connection.api.transactions.send(jsonStr);
+     Serial.print("\ntxSendResponse: ");
+     Serial.println(txSendResponse.c_str());
+     esp_deep_sleep_start();
+
+  */
 
 }
